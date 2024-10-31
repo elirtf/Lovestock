@@ -1,0 +1,60 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+{% block title %}Lovestock - Dashboard{% endblock %}
+{% block content %}
+
+<div class="dashboard">
+    <div class="search-input">
+        <form action="/search" method="get"></form>
+    </div>
+    <div class="sort-options">
+        <span>Sort by:</span>
+        <a href="{{ url_for('index', sort_by='symbol') }}" class="sort-button">Symbol</a>
+        <a href="{{ url_for('index', sort_by='price') }}" class="sort-button">Price</a>
+        <a href="{{ url_for('index', sort_by='change') }}" class="sort-button">Change</a>
+    </div>
+
+    <section class="stock-section">
+        <h2>Market Overview</h2>
+        <div class="stock-grid">
+            {% for stock in stocks %}
+            <div class="stock-card" data-symbol="{{ stock.symbol }}" onclick="window.location.href='{{ url_for('stock_detail', symbol=stock.symbol) }}'">
+                    <div class="stock-header">
+                        <h3>{{ stock.symbol }}</h3>
+                        <span class="timestamp">Updated: {{ stock.updated_at }}</span>
+                    </div>
+                    <div class="stock-price">${{ stock.price }}</div>
+                    <div class="stock-change {{ 'positive' if stock.change >= 0 else 'negative' }}">
+                        {{ '+' if stock.change >= 0 else '' }}{{ stock.change }} ({{ stock.percent_change }}%)
+                    </div>
+                    <canvas class="stock-mini-chart"></canvas>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if watchlist %}
+    <section class="stock-section">
+        <h2>My Watchlist</h2>
+        <div class="stock-grid">
+            {% for stock in watchlist %}
+            <div class="stock-card">
+                <div class="stock-header">
+                    <h3>{{ stock.symbol }}</h3>
+                    <form class="watchlist-form" method="POST" action="{{ url_for('remove_from_watchlist') }}">
+                        <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                        <button type="submit" class="remove-button">Remove</button>
+                    </form>
+                </div>
+                <div class="stock-price">${{ stock.price }}</div>
+                <div class="stock-change {{ 'positive' if stock.change >= 0 else 'negative' }}">
+                    {{ '+' if stock.change >= 0 else '' }}{{ stock.change }} ({{ stock.percent_change }}%)
+                </div>
+                <canvas class="stock-mini-chart"></canvas>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

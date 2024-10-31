@@ -1,0 +1,120 @@
+<!-- templates/stock.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ stock.symbol }} - Stock Details{% endblock %}
+
+{% block content %}
+<div class="stock-detail">
+    <div class="stock-header">
+        <h1>{{ stock.name }} ({{ stock.symbol }})</h1>
+        <div class="stock-price-large">${{ stock.price }}</div>
+        <div class="stock-change-large {{ 'positive' if stock.change >= 0 else 'negative' }}">
+            {{ '+' if stock.change >= 0 else '' }}{{ stock.change }}
+            ({{ stock.change_percent }}%)
+        </div>
+
+        <div class="watchlist-actions"></div>
+            {% if stock.symbol in session.get('watchlist', []) %}
+            <form action="{{ url_for('remove_from_watchlist') }}" method="POST" style="display: inline;">
+                <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                <button type="submit" class="button">Remove from watchlist</button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('add_to_watchlist') }}" method="POST" style="display: inline;">
+                <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                <button type="submit" class="button">Add to watchlist</button>
+            </form>
+            {% endif %}
+        </div>
+
+    <div class="timeframe-selector">
+        {% for tf in ['1d', '1w', '1m', '3m', '1y'] %}
+        <a href="{{ url_for('stock_detail', symbol=stock.symbol, timeframe=tf) }}"
+           class="timeframe-button {{ 'active' if timeframe == tf }}">
+            {{ tf.upper() }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="stock-chart-container">
+        <canvas id="stockChart"></canvas>
+    </div>
+
+    <div class="stock-details-grid">
+        {% for key, value in stock.details.items() %}
+        <div class="detail-item">
+            <div class="detail-label">{{ key }}</div>
+            <div class="detail-value">{{ value }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    const histData = {{ hist_data|tojson|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: histData.map(d => d.date),
+            datasets: [{
+                label: '{{ stock.symbol }} Price',
+                data: histData.map(d => d.price),
+                borderColor: '#2563eb',
+                borderWidth: 2,
+                tension: 0.4,
+                pointRadius: 1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `$${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 8,
+                        maxRotation: 0
+                    }
+                },
+                y: {
+                    display: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return `$${value.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
