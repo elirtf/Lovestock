@@ -24,7 +24,7 @@
         </div>
         <div class="stock-grid">
             {% for stock in stocks %}
-            <div class="stock-card" data-symbol="{{ stock.symbol }}">
+            <div class='stock-card' data-symbol='{{ stock.symbol }}' data-chart='{{ stock.chart_data|tojson|safe }}'>
                 {% if stock.symbol not in session.get('watchlist', []) and session.get('watchlist', [])|length < max_watchlist %}
                 <form action="{{ url_for('add_to_watchlist') }}" method="POST" class="watchlist-form">
                     <input type="hidden" name="symbol" value="{{ stock.symbol }}">
@@ -45,11 +45,7 @@
                     </div>
                     <div class="stock-volume">Vol: {{ stock.volume }}</div>
                 </div>
-                <canvas class="stock-mini-chart"
-                        width="200"
-                        height="60"
-                        data-chart="{{ stock.chart_data|tojson|safe }}">
-                </canvas>
+                <canvas class="stock-mini-chart" width="200" height="60"></canvas>
             </div>
             {% endfor %}`
         </div>
@@ -86,6 +82,32 @@
         </div>
     </section>
     {% endif %}
+
+    <div class="stock-section">
+        <h2>Latest Market News</h2>
+        <div class="news-feed">
+            {% if news %}
+                <div class="news-items">
+                    {% for article in news %}
+                    <div class="news-item">
+                        <div class="news-item-content">
+                            <div class="news-source">{{ article.source }}</div>
+                            <a href="{{ article.url }}" target="_blank" class="news-headline">
+                                {{ article.title }}
+                            </a>
+                            <div class="news-summary">{{ article.summary }}</div>
+                            <div class="news-timestamp">{{ article.timestamp }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No news articles available at the moment.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 
 {% endblock %}
 
