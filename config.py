@@ -6,7 +6,7 @@ class Config:
 
     SECRET_KEY = 'test'
 
-    DEFAULT_STOCKS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META']
+    DEFAULT_STOCKS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA']
     # ^GSPC
     # ^DJI
     # ^IXIC
