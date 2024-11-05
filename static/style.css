@@ -403,6 +403,60 @@ body {
     pointer-events: none;
 }
 
+/* News Section Styles */
+.news-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--card-background);
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+}
+.news-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+.news-grid {
+    display: grid;
+    gap: 1rem;
+}
+.news-card {
+    padding: 1.5rem;
+    background: var(--background-color);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+    text-decoration: none;
+    color: var(--text-primary);
+}
+.news-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+.news-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+.news-summary {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+.news-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.news-publisher {
+    font-weight: 500;
+}
+
+
 /* Animations & Design */
 @keyframes fadeIn {
     from {
@@ -620,12 +674,22 @@ body {
 
 /* Tooltip Customization & Charts */
 .chart-tooltip {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: 0.5rem !important;
-    padding: 0.75rem !important;
-    color: white !important;
+    padding: 0.75rem 1rem !important;
+    color: var(--text-primary) !important;
     font-size: 0.875rem !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 12px var(--shadow-color) !important;
+}
+.chart-tooltip-label {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+.chart-tooltip-value {
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 .stock-mini-chart {
@@ -682,14 +746,42 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     border-radius: 0.5rem;
     border: 1px solid var(--border-color);
     background: var(--background-color);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 0.875rem;
 }
 .chart-option-button:hover {
     border-color: var(--primary-color);
+}
+.chart-option-button.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+.chart-option-button:hover:not(.active) {
+    border-color: var(--primary-color);
+    background: rgba(0, 200, 5, 0.1);
+}
+.chart-option-button svg {
+    width: 16px;
+    height: 16px;
+    transition: all 0.2s;
+}
+.chart-option-button.active svg {
+    color: white;
+}
+
+/* Candlestick Styling */
+.candlestick-up {
+    fill: var(--success-color);
+    stroke: var(--success-color);
+}
+.candlestick-down {
+    fill: var(--danger-color);
+    stroke: var(--danger-color);
 }
