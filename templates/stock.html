@@ -1,39 +1,77 @@
-<!-- templates/stock.html -->
 {% extends "base.html" %}
 
 {% block title %}{{ stock.symbol }} - Stock Details{% endblock %}
 
 {% block content %}
 <div class="stock-detail">
-    <div class="stock-header">
-        <h1>{{ stock.name }} ({{ stock.symbol }})</h1>
-        <div class="stock-price-large">${{ stock.price }}</div>
-        <div class="stock-change-large {{ 'positive' if stock.change >= 0 else 'negative' }}">
-            {{ '+' if stock.change >= 0 else '' }}{{ stock.change }}
-            ({{ stock.change_percent }}%)
+    <div class="stock-detail-header">
+        <div class="stock-header-left">
+            <div class="stock-title">
+                <h1 class="stock-symbol">{{ stock.symbol }}</h1>
+                <span class="stock-name">{{ stock.name }}</span>
+            </div>
+            <div class="stock-price-container">
+                    <div class="stock-price-large">${{ '{:.2f}'.format(stock.price) }}</div>
+                    <div class="stock-change-large {% if stock.change >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ '↑' if stock.change >= 0 else '↓' }}
+                        ${{ '{:.2f}'.format(stock.change|abs) }}
+                        ({{ '{:.2f}'.format(stock.percent_change|abs) }}%)
+                    </div>
+            </div>
         </div>
 
-        <div class="watchlist-actions"></div>
-            {% if stock.symbol in session.get('watchlist', []) %}
-            <form action="{{ url_for('remove_from_watchlist') }}" method="POST" style="display: inline;">
+        <div class="stock-header-right">
+            <div class="market-status {% if market_open %}open{% else %}closed{% endif %}">
+                <span class="status-indicator"></span>
+                {{ 'Market Open' if market_open else 'Market Closed' }}
+            </div>
+            {% if not is_in_watchlist and session.watchlist|length < max_watchlist %}
+            <form action="{{ url_for('add_to_watchlist') }}" method="POST" class="watchlist-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
-                <button type="submit" class="button">Remove from watchlist</button>
+                <button type="submit" class="watchlist-button">
+                    <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Add to Watchlist
+                </button>
             </form>
-            {% else %}
-            <form action="{{ url_for('add_to_watchlist') }}" method="POST" style="display: inline;">
+            {% elif is_in_watchlist %}
+            <form action="{{ url_for('remove_from_watchlist') }}" method="POST" class="watchlist-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
-                <button type="submit" class="button">Add to watchlist</button>
+                <button type="submit" class="watchlist-button remove">
+                    <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Remove from Watchlist
+                </button>
             </form>
             {% endif %}
         </div>
+    </div>
 
-    <div class="timeframe-selector">
-        {% for tf in ['1d', '1w', '1m', '3m', '1y'] %}
-        <a href="{{ url_for('stock_detail', symbol=stock.symbol, timeframe=tf) }}"
-           class="timeframe-button {{ 'active' if timeframe == tf }}">
-            {{ tf.upper() }}
-        </a>
-        {% endfor %}
+    <div class="chart-controls">
+        <div class="timeframe-selector">
+            {% for tf, label in [('1d', '1D'), ('1w', '1W'), ('1m', '1M'), ('3m', '3M'), ('1y', '1Y')] %}
+            <a href="{{ url_for('stock_detail', symbol=stock.symbol, timeframe=tf) }}"
+               class="timeframe-button {% if timeframe == tf %}active{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="chart-options">
+            <button class="chart-option-button" data-type="line">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18"></path>
+                </svg>
+                Line
+            </button>
+            <button class="chart-option-button" data-type="candle">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 5v14M17 5v14M3 8h8v8H3zM13 8h8v8h-8z"></path>
+                </svg>
+                Candlestick
+            </button>
+        </div>
     </div>
 
     <div class="stock-chart-container">
@@ -41,79 +79,147 @@
     </div>
 
     <div class="stock-details-grid">
-        {% for key, value in stock.details.items() %}
-        <div class="detail-item">
-            <div class="detail-label">{{ key }}</div>
-            <div class="detail-value">{{ value }}</div>
+        <div class="details-card">
+            <h3>Trading Information</h3>
+            <div class="details-grid">
+                <div class="detail-item">
+                    <div class="detail-label">Open</div>
+                    <div class="detail-value">${{ '{:.2f}'.format(stock.details.Open) }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">High</div>
+                    <div class="detail-value">${{ '{:.2f}'.format(stock.details.High) }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Low</div>
+                    <div class="detail-value">${{ '{:.2f}'.format(stock.details.Low) }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Volume</div>
+                    <div class="detail-value">{{ stock.details.Volume }}</div>
+                </div>
+            </div>
         </div>
-        {% endfor %}
+
+        <div class="details-card">
+            <h3>Company Metrics</h3>
+            <div class="details-grid">
+                <div class="detail-item">
+                    <div class="detail-label">Market Cap</div>
+                    <div class="detail-value">{{ stock.details['Market Cap'] }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">P/E Ratio</div>
+                    <div class="detail-value">{{ stock.details['P/E Ratio'] }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">EPS</div>
+                    <div class="detail-value">{{ stock.details.EPS }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Beta</div>
+                    <div class="detail-value">{{ stock.details.Beta }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="details-card">
+            <h3>Additional Information</h3>
+            <div class="details-grid">
+                <div class="detail-item">
+                    <div class="detail-label">52 Week High</div>
+                    <div class="detail-value">${{ '{:.2f}'.format(stock.details['52 Week High']) }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">52 Week Low</div>
+                    <div class="detail-value">${{ '{:.2f}'.format(stock.details['52 Week Low']) }}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Dividend Yield</div>
+                    <div class="detail-value">{{ stock.details['Dividend Yield'] }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const chartData = {{ stock.historical_data | tojson | safe }};
     const ctx = document.getElementById('stockChart').getContext('2d');
-    const histData = {{ hist_data|tojson|safe }};
+    const isPositive = {{ 'true' if stock.change >= 0 else 'false' }};
 
-    new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: histData.map(d => d.date),
+            labels: chartData.map(d => new Date(d.date).toLocaleString()),
             datasets: [{
                 label: '{{ stock.symbol }} Price',
-                data: histData.map(d => d.price),
-                borderColor: '#2563eb',
+                data: chartData.map(d => d.price),
+                borderColor: isPositive ? '#00C805' : '#FF5000',
+                backgroundColor: isPositive ? 'rgba(0, 200, 5, 0.1)' : 'rgba(255, 80, 0, 0.1)',
                 borderWidth: 2,
-                tension: 0.4,
-                pointRadius: 1,
-                fill: false
+                fill: true,
+                tension: 0.4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: false
+                },
                 tooltip: {
-                    mode: 'index',
-                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    padding: 12,
+                    bodyFont: {
+                        size: 14
+                    },
                     callbacks: {
                         label: function(context) {
-                            return `$${context.raw.toFixed(2)}`;
+                            return `$${context.parsed.y.toFixed(2)}`;
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    type: 'category',
-                    display: true,
                     grid: {
                         display: false
                     },
                     ticks: {
                         maxTicksLimit: 8,
-                        maxRotation: 0
+                        color: '#8C8C8E'
                     }
                 },
                 y: {
-                    display: true,
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
+                        color: 'rgba(255, 255, 255, 0.1)'
                     },
                     ticks: {
+                        color: '#8C8C8E',
                         callback: function(value) {
-                            return `$${value.toFixed(2)}`;
+                            return '$' + value.toFixed(2);
                         }
                     }
                 }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
             }
         }
+    });
+
+    // Chart type toggle
+    document.querySelectorAll('.chart-option-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const chartType = this.dataset.type;
+            // Add your chart type switching logic here
+        });
     });
 });
 </script>
