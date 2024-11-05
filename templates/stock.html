@@ -25,24 +25,26 @@
                 <span class="status-indicator"></span>
                 {{ 'Market Open' if market_open else 'Market Closed' }}
             </div>
-            {% if not is_in_watchlist and session.watchlist|length < max_watchlist %}
+            {% if not is_in_watchlist and session.get('watchlist', [])|length < max_watchlist %}
             <form action="{{ url_for('add_to_watchlist') }}" method="POST" class="watchlist-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                <input type="hidden" name="return_to" value="{{ request.path }}">
                 <button type="submit" class="watchlist-button">
+                    Add to Watchlist
                     <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    Add to Watchlist
                 </button>
             </form>
             {% elif is_in_watchlist %}
             <form action="{{ url_for('remove_from_watchlist') }}" method="POST" class="watchlist-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+                <input type="hidden" name="return_to" value="{{ request.path }}">
                 <button type="submit" class="watchlist-button remove">
+                    Remove from Watchlist
                     <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    Remove from Watchlist
                 </button>
             </form>
             {% endif %}
@@ -51,7 +53,7 @@
 
     <div class="chart-controls">
         <div class="timeframe-selector">
-            {% for tf, label in [('1d', '1D'), ('1w', '1W'), ('1m', '1M'), ('3m', '3M'), ('1y', '1Y')] %}
+            {% for tf, label in [('1d', '1D'), ('1w', '1W'), ('1m', '1M'), ('3m', '3M'), ('1y', '1Y'), ('5y', '5Y')] %}
             <a href="{{ url_for('stock_detail', symbol=stock.symbol, timeframe=tf) }}"
                class="timeframe-button {% if timeframe == tf %}active{% endif %}">
                 {{ label }}
@@ -65,11 +67,11 @@
                 </svg>
                 Line
             </button>
-            <button class="chart-option-button" data-type="candle">
+            <button class="chart-option-button" data-type="candlestick">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M7 5v14M17 5v14M3 8h8v8H3zM13 8h8v8h-8z"></path>
                 </svg>
-                Candlestick
+                Candle
             </button>
         </div>
     </div>
@@ -141,31 +143,94 @@
             </div>
         </div>
     </div>
+
+    <!-- News Section -->
+    <div class="news-section">
+        <h2>Latest News</h2>
+        <div class="news-grid">
+            {% for item in news %}
+            <a href="{{ item.link }}" target="_blank" class="news-card">
+                <div class="news-content">
+                    <h3 class="news-title">{{ item.title }}</h3>
+                    <p class="news-summary">{{ item.summary[:200] }}...</p>
+                    <div class="news-meta">
+                        <span class="news-publisher">{{ item.publisher }}</span>
+                        <span class="news-date">{{ item.published }}</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const chartData = {{ stock.historical_data | tojson | safe }};
     const ctx = document.getElementById('stockChart').getContext('2d');
     const isPositive = {{ 'true' if stock.change >= 0 else 'false' }};
+    let chart;
 
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: chartData.map(d => new Date(d.date).toLocaleString()),
-            datasets: [{
-                label: '{{ stock.symbol }} Price',
-                data: chartData.map(d => d.price),
-                borderColor: isPositive ? '#00C805' : '#FF5000',
-                backgroundColor: isPositive ? 'rgba(0, 200, 5, 0.1)' : 'rgba(255, 80, 0, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
+    function parseDate(dateStr) {
+        return new Date(dateStr).getTime(); // Convert to timestamp
+    }
+
+    function createLineChart() {
+        return {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: '{{ stock.symbol }} Price',
+                    data: chartData.map(d => ({
+                        x: parseDate(d.date),
+                        y: d.price
+                    })),
+                    borderColor: isPositive ? '#00C805' : '#FF5000',
+                    backgroundColor: isPositive ? 'rgba(0, 200, 5, 0.1)' : 'rgba(255, 80, 0, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            }
+        };
+    }
+
+    function createCandlestickChart() {
+        return {
+            type: 'candlestick',
+            data: {
+                datasets: [{
+                    label: '{{ stock.symbol }} OHLC',
+                    data: chartData.map(d => ({
+                        x: parseDate(d.date),
+                        o: d.open,
+                        h: d.high,
+                        l: d.low,
+                        c: d.close
+                    })),
+                    color: {
+                        up: '#00C805',
+                        down: '#FF5000',
+                    }
+                }]
+            }
+        };
+    }
+
+    function createChart(type = 'line') {
+        const configs = {
+            line: createLineChart(),
+            candlestick: createCandlestickChart()
+        };
+
+        const config = configs[type];
+        config.options = {
             responsive: true,
             maintainAspectRatio: false,
             interaction: {
@@ -184,19 +249,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     callbacks: {
                         label: function(context) {
-                            return `$${context.parsed.y.toFixed(2)}`;
+                            if (type === 'line') {
+                                return `$${context.parsed.y.toFixed(2)}`;
+                            } else {
+                                const dataPoint = context.raw;
+                                return [
+                                    `Open: $${dataPoint.o.toFixed(2)}`,
+                                    `High: $${dataPoint.h.toFixed(2)}`,
+                                    `Low: $${dataPoint.l.toFixed(2)}`,
+                                    `Close: $${dataPoint.c.toFixed(2)}`
+                                ];
+                            }
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    type: 'time',
+                    time: {
+                        unit: '{{ timeframe }}' === '1d' ? 'hour' : 'day',
+                        displayFormats: {
+                            hour: 'HH:mm',
+                            day: 'MMM d'
+                        }
+                    },
                     grid: {
                         display: false
                     },
                     ticks: {
-                        maxTicksLimit: 8,
-                        color: '#8C8C8E'
+                        display: false
                     }
                 },
                 y: {
@@ -204,23 +286,63 @@ document.addEventListener('DOMContentLoaded', function() {
                         color: 'rgba(255, 255, 255, 0.1)'
                     },
                     ticks: {
-                        color: '#8C8C8E',
-                        callback: function(value) {
-                            return '$' + value.toFixed(2);
-                        }
+                        display: false
                     }
                 }
             }
-        }
-    });
+        };
 
-    // Chart type toggle
+        if (type === 'candlestick') {
+            config.options.scales.y.beginAtZero = false;
+        }
+
+        if (chart) {
+            chart.destroy();
+        }
+        chart = new Chart(ctx, config);
+    }
+
+
+    // Initialize with line chart
+    createChart('line');
+
+    // Handle chart type switching
     document.querySelectorAll('.chart-option-button').forEach(button => {
         button.addEventListener('click', function() {
-            const chartType = this.dataset.type;
-            // Add your chart type switching logic here
+            const type = this.dataset.type;
+            document.querySelectorAll('.chart-option-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            createChart(type);
         });
     });
+
+    // Live updates
+    if ({{ 'true' if market_open else 'false' }}) {
+        setInterval(() => {
+            fetch(`/api/stock/${encodeURIComponent('{{ stock.symbol }}')}/latest`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        // Update price display
+                        const priceEl = document.querySelector('.stock-price-large');
+                        const changeEl = document.querySelector('.stock-change-large');
+                        if (priceEl && changeEl) {
+                            priceEl.textContent = `$${data.price.toFixed(2)}`;
+                            changeEl.className = `stock-change-large ${data.change >= 0 ? 'positive' : 'negative'}`;
+                            changeEl.innerHTML = `${data.change >= 0 ? '↑' : '↓'} $${Math.abs(data.change).toFixed(2)} (${Math.abs(data.percent_change).toFixed(2)}%)`;
+                        }
+
+                        // Update chart data
+                        const chartData = data.historical_data;
+                        const type = chart.config.type;
+                        createChart(type);
+                    }
+                })
+                .catch(error => console.error('Error updating chart:', error));
+        }, 5000);
+    }
 });
 </script>
 {% endblock %}
