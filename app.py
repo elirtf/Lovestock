@@ -64,6 +64,10 @@ def fetch_stock_data(symbol: str) -> Optional[dict]:
         stock = yf.Ticker(symbol)
         hist = stock.history(period="1d", interval="1m")
 
+        stockinfo = stock.info
+        marketcap = stockinfo.get('marketCap', 0)
+        marketcap = format_large_number(marketcap)
+
         if hist.empty:
             logger.warning(f"No data available for symbol: {symbol}")
             return None
@@ -72,15 +76,14 @@ def fetch_stock_data(symbol: str) -> Optional[dict]:
         open_price = hist['Open'].iloc[0]
         price_change = current_price - open_price
         volume = hist['Volume'].sum()
-        info = stock.info
 
         return {
             'symbol': symbol,
-            'name': info.get('longName', symbol),
             'price': round(current_price, 2),
             'change': round(price_change, 2),
             'percent_change': round((price_change / open_price) * 100, 2),
             'volume': format_large_number(volume),
+            'marketCap': marketcap,
             'chart_data': hist['Close'].tolist()[-100:],
             'updated_at': datetime.now().strftime('%H:%M:%S')
         }
@@ -96,10 +99,11 @@ def fetch_detailed_stock_data(symbol: str, timeframe: str = '1d') -> Optional[di
         # Timeframe parameters
         timeframe_params = {
             '1d': ('1d', '5m'),
-            '1w': ('5d', '1h'),
-            '1m': ('1mo', '1d'),
+            '1w': ('5d', '15m'),
+            '1m': ('1mo', '1h'),
             '3m': ('3mo', '1d'),
-            '1y': ('1y', '1wk')
+            '1y': ('1y', '1d'),
+            '5y': ('5y', '1wk')
         }
         period, interval = timeframe_params.get(timeframe, ('1d', '5m'))
 
@@ -111,8 +115,13 @@ def fetch_detailed_stock_data(symbol: str, timeframe: str = '1d') -> Optional[di
 
         # Format historical data for charts
         hist_data = [{
-            'date': index.strftime('%m-%d %H:%M:%S'),
-            'price': round(row['Close'], 2)
+            'date': index.isoformat(),
+            'price': round(row['Close'], 2),
+            'open': round(row['Open'], 2),
+            'high': round(row['High'], 2),
+            'low': round(row['Low'], 2),
+            'close': round(row['Close'], 2),
+            'volume': int(row['Volume'])
         } for index, row in hist.iterrows()]
 
         current_price = hist['Close'].iloc[-1]
@@ -121,28 +130,49 @@ def fetch_detailed_stock_data(symbol: str, timeframe: str = '1d') -> Optional[di
 
         return {
             'symbol': symbol,
-            'name': info.get('longName', symbol),
+            'name': stock.info.get('longName', symbol),
             'price': round(current_price, 2),
             'change': round(price_change, 2),
             'percent_change': round((price_change / open_price) * 100, 2),
             'historical_data': hist_data,
             'details': {
-                'Open': round(hist['Open'].iloc[0], 2),
+                'Open': round(open_price, 2),
                 'High': round(hist['High'].max(), 2),
                 'Low': round(hist['Low'].min(), 2),
                 'Volume': format_large_number(hist['Volume'].sum()),
-                'Market Cap': format_large_number(info.get('marketCap', 0)),
-                'P/E Ratio': f"{info.get('forwardPE', 'N/A'):.2f}" if isinstance(info.get('forwardPE'), (int, float)) else 'N/A',
-                'EPS': f"{info.get('trailingEps', 'N/A'):.2f}" if isinstance(info.get('trailingEps'), (int, float)) else 'N/A',
-                'Beta': f"{info.get('beta', 'N/A'):.2f}" if isinstance(info.get('beta'), (int, float)) else 'N/A',
-                'Dividend Yield': f"{info.get('dividendYield', 0) * 100:.2f}%" if info.get('dividendYield') else 'N/A',
-                '52 Week High': round(info.get('fiftyTwoWeekHigh', 0), 2) if info.get('fiftyTwoWeekHigh') else 'N/A',
-                '52 Week Low': round(info.get('fiftyTwoWeekLow', 0), 2) if info.get('fiftyTwoWeekLow') else 'N/A'
+                'Market Cap': format_large_number(stock.info.get('marketCap', 0)),
+                'P/E Ratio': f"{stock.info.get('forwardPE', 'N/A'):.2f}" if isinstance(stock.info.get('forwardPE'), (int, float)) else 'N/A',
+                'EPS': f"{stock.info.get('trailingEps', 'N/A'):.2f}" if isinstance(stock.info.get('trailingEps'), (int, float)) else 'N/A',
+                'Beta': f"{stock.info.get('beta', 'N/A'):.2f}" if isinstance(stock.info.get('beta'), (int, float)) else 'N/A',
+                'Dividend Yield': f"{stock.info.get('dividendYield', 0) * 100:.2f}%" if stock.info.get('dividendYield') else 'N/A',
+                '52 Week High': round(stock.info.get('fiftyTwoWeekHigh', 0), 2) if stock.info.get('fiftyTwoWeekHigh') else 'N/A',
+                '52 Week Low': round(stock.info.get('fiftyTwoWeekLow', 0), 2) if stock.info.get('fiftyTwoWeekLow') else 'N/A'
             }
         }
     except Exception as e:
         logger.error(f"Error fetching detailed data for {symbol}: {str(e)}")
         return None
+
+def fetch_stock_news(symbol: str) -> list:
+    """Fetch news for specific stock"""
+    try:
+        stock = yf.Ticker(symbol)
+        news = stock.news
+        formatted_news = []
+
+        for item in news[:5]:  # Limit to 5 most recent news items
+            formatted_news.append({
+                'title': item.get('title', ''),
+                'publisher': item.get('publisher', ''),
+                'link': item.get('link', ''),
+                'published': datetime.fromtimestamp(item.get('providerPublishTime', 0)).strftime('%Y-%m-%d %H:%M'),
+                'summary': item.get('summary', '')
+            })
+
+        return formatted_news
+    except Exception as e:
+        logger.error(f"Error fetching news for {symbol}: {str(e)}")
+        return []
 
 def update_stock_cache():
     """Background task to update stock data"""
@@ -195,13 +225,13 @@ def index():
 def stock_detail(symbol):
     try:
         timeframe = request.args.get('timeframe', '1d')
-
         stock_data = fetch_detailed_stock_data(symbol, timeframe)
 
         if not stock_data:
             flash(f"Unable to fetch data for {symbol}", "error")
             return redirect(url_for('index'))
 
+        news_data = fetch_stock_news(symbol)
         watchlist = session.get('watchlist', [])
 
         return render_template('stock.html',
@@ -209,28 +239,47 @@ def stock_detail(symbol):
                                timeframe=timeframe,
                                market_open=is_market_open(),
                                is_in_watchlist=symbol in watchlist,
-                               max_watchlist=Config.MAX_WATCHLIST_ITEMS)
+                               max_watchlist=Config.MAX_WATCHLIST_ITEMS,
+                               news=news_data)
     except Exception as e:
         logger.error(f"Error in stock detail: {str(e)}")
         flash("Error loading stock details", "error")
         return redirect(url_for('index'))
 
+@app.route('/api/stock/<symbol>/latest')
+def get_latest_stock_data(symbol):
+    try:
+        data = stock_cache.get(symbol)
+        if data:
+            return jsonify(data)
+
+        # If not in cache, fetch it
+        data = fetch_stock_data(symbol)
+        if data:
+            stock_cache[symbol] = data
+            return jsonify(data)
+
+        return jsonify({'error': 'Stock not found'}), 404
+    except Exception as e:
+        logger.error(f"Error fetching latest stock data: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/add_to_watchlist', methods=['POST'])
 def add_to_watchlist():
     try:
         symbol = request.form['symbol']
+        return_to = request.form.get('return_to')
         watchlist = session.get('watchlist', [])
 
         if len(watchlist) >= Config.MAX_WATCHLIST_ITEMS:
             flash(f'Watchlist is limited to {Config.MAX_WATCHLIST_ITEMS} items', 'error')
             return redirect(url_for('index'))
-
         if symbol not in watchlist:
             watchlist.append(symbol)
             session['watchlist'] = watchlist
             flash(f'{symbol} added to watchlist', 'success')
 
-        return redirect(url_for('index'))
+        return redirect(return_to if return_to else url_for('index'))
     except Exception as e:
         logger.error(f"Error adding to watchlist: {str(e)}")
         flash('An error occurred while updating watchlist', 'error')
@@ -240,6 +289,7 @@ def add_to_watchlist():
 def remove_from_watchlist():
     try:
         symbol = request.form['symbol']
+        return_to = request.form.get('return_to')
         watchlist = session.get('watchlist', [])
 
         if symbol in watchlist:
@@ -247,7 +297,7 @@ def remove_from_watchlist():
             session['watchlist'] = watchlist
             flash(f'{symbol} removed from watchlist', 'success')
 
-        return redirect(url_for('index'))
+        return redirect(return_to if return_to else url_for('index'))
     except Exception as e:
         logger.error(f"Error removing from watchlist: {str(e)}")
         flash('An error occurred while updating watchlist', 'error')
@@ -263,19 +313,27 @@ def search():
         logger.info(f"Searching for symbol: {query}")
         results = []
 
-        if any(query in stock for stock in Config.DEFAULT_STOCKS):
-            cached_matches = [stock for stock in Config.DEFAULT_STOCKS if query in stock]
-            for symbol in cached_matches:
-                data = stock_cache.get(symbol)
-                if data:
-                    results.append(data)
+        # First check cache for exact matches
+        cached_matches = [stock for stock in Config.DEFAULT_STOCKS if query == stock]
+        for symbol in cached_matches:
+            data = stock_cache.get(symbol)
+            if data:
+                results.append(data)
 
         # If query is not in cache, try to fetch it directly
-        if len(query) >= 1 and query not in Config.DEFAULT_STOCKS:
+        if not results and len(query) >= 1:
             data = fetch_stock_data(query)
             if data:
                 results.append(data)
                 stock_cache[query] = data
+
+        # If still no results, look for partial matches in cache
+        if not results:
+            partial_matches = [stock for stock in Config.DEFAULT_STOCKS if query in stock]
+            for symbol in partial_matches:
+                data = stock_cache.get(symbol)
+                if data:
+                    results.append(data)
 
         # Remove duplicates while preserving order
         seen = set()
@@ -286,7 +344,7 @@ def search():
                 unique_results.append(item)
 
         logger.info(f"Returning {len(unique_results)} results")
-        return jsonify(unique_results)
+        return jsonify(unique_results[:5])
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
