@@ -2,3 +2,4 @@ yfinance~=0.2.48
 Flask~=3.0.3
 Werkzeug~=3.0.6
 pytz~=2024.2
+pandas~=2.2.3

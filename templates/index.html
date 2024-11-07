@@ -8,11 +8,12 @@
         <div class="sort-container">
             <span class="sort-label">Sort by:</span>
             <select class="sort-select" onchange="window.location.href='{{ url_for('index') }}?sort_by=' + this.value">
-                <option value="symbol" {% if request.args.get('sort_by') == 'symbol' %}selected{% endif %}>Symbol</option>
+                <option value="symbol" {% if request.args.get('sort_by') == 'symbol' %}selected{% endif %}>Symbol (default)</option>
                 <option value="price" {% if request.args.get('sort_by') == 'price' %}selected{% endif %}>Price</option>
-                <option value="percent_change" {% if request.args.get('sort_by') == 'percent_change' %}selected{% endif %}>% Change</option>
-                <option value="volume" {% if request.args.get('sort_by') == 'volume' %}selected{% endif %}>Vol.</option>
-                <option value="marketCap" {% if request.args.get('sort_by') == 'marketCap' %}selected{% endif %}>Mkt. Cap</option>
+                <option value="percent_change" {% if request.args.get('sort_by') == 'percent_change' %}selected{% endif %}>Percentage Change</option>
+                <option value="volume" {% if request.args.get('sort_by') == 'volume' %}selected{% endif %}>Volume</option>
+                <option value="marketCap" {% if request.args.get('sort_by') == 'marketCap' %}selected{% endif %}>Market Cap</option>
+                <option value="name" {% if request.args.get('sort_by') == 'name' %}selected{% endif %}>Name</option>
             </select>
         </div>
     </div>
@@ -47,7 +48,7 @@
                 </div>
                 <canvas class="stock-mini-chart" width="200" height="60"></canvas>
             </div>
-            {% endfor %}`
+            {% endfor %}
         </div>
     </section>
 </div>
@@ -74,7 +75,6 @@
                         ${{ '{:.2f}'.format(stock.change|abs) }}
                         ({{ '{:.2f}'.format(stock.percent_change|abs) }}%)
                     </div>
-                    <div class="stock-volume">Vol: {{ stock.volume }}</div>
                 </div>
                 <canvas class="stock-mini-chart" width="200" height="60"></canvas>
             </div>
@@ -82,32 +82,6 @@
         </div>
     </section>
     {% endif %}
-
-    <div class="stock-section">
-        <h2>Latest Market News</h2>
-        <div class="news-feed">
-            {% if news %}
-                <div class="news-items">
-                    {% for article in news %}
-                    <div class="news-item">
-                        <div class="news-item-content">
-                            <div class="news-source">{{ article.source }}</div>
-                            <a href="{{ article.url }}" target="_blank" class="news-headline">
-                                {{ article.title }}
-                            </a>
-                            <div class="news-summary">{{ article.summary }}</div>
-                            <div class="news-timestamp">{{ article.timestamp }}</div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <p>No news articles available at the moment.</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
 
 {% endblock %}
 

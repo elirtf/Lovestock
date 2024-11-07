@@ -1,22 +1,24 @@
 {% extends "base.html" %}
-
-{% block title %}{{ stock.symbol }} - Stock Details{% endblock %}
-
+{% block title %}{{ stock.symbol }} - {{ stock.name }}{% endblock %}
 {% block content %}
+
 <div class="stock-detail">
+    <!-- Header Section -->
     <div class="stock-detail-header">
+
         <div class="stock-header-left">
             <div class="stock-title">
-                <h1 class="stock-symbol">{{ stock.symbol }}</h1>
+                <div class="stock-symbol">{{ stock.symbol }}</div>
                 <span class="stock-name">{{ stock.name }}</span>
             </div>
+
             <div class="stock-price-container">
-                    <div class="stock-price-large">${{ '{:.2f}'.format(stock.price) }}</div>
-                    <div class="stock-change-large {% if stock.change >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ '↑' if stock.change >= 0 else '↓' }}
-                        ${{ '{:.2f}'.format(stock.change|abs) }}
-                        ({{ '{:.2f}'.format(stock.percent_change|abs) }}%)
-                    </div>
+                <div class="stock-price-large">${{ '{:.2f}'.format(stock.price) }}</div>
+                <div class="stock-change-large {% if stock.change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ '↑' if stock.change >= 0 else '↓' }}
+                    ${{ '{:.2f}'.format(stock.change|abs) }}
+                    ({{ '{:.2f}'.format(stock.percent_change|abs) }}%)
+                </div>
             </div>
         </div>
 
@@ -25,62 +27,68 @@
                 <span class="status-indicator"></span>
                 {{ 'Market Open' if market_open else 'Market Closed' }}
             </div>
-            {% if not is_in_watchlist and session.get('watchlist', [])|length < max_watchlist %}
+
+            {% if stock.symbol not in session.get('watchlist', []) and session.get('watchlist', [])|length < max_watchlist %}
             <form action="{{ url_for('add_to_watchlist') }}" method="POST" class="watchlist-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
-                <input type="hidden" name="return_to" value="{{ request.path }}">
-                <button type="submit" class="watchlist-button">
-                    Add to Watchlist
-                    <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <input type="hidden" name="return_to" value="{{ url_for('stock_detail', symbol=stock.symbol) }}">
+                <button type="submit" class="watchlist-button" title="Add to Watchlist">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                     </svg>
                 </button>
             </form>
-            {% elif is_in_watchlist %}
-            <form action="{{ url_for('remove_from_watchlist') }}" method="POST" class="watchlist-form">
+            {% else %}
+            <form action="{{ url_for('remove_from_watchlist') }}" method="POST" class="remove-form">
                 <input type="hidden" name="symbol" value="{{ stock.symbol }}">
-                <input type="hidden" name="return_to" value="{{ request.path }}">
-                <button type="submit" class="watchlist-button remove">
-                    Remove from Watchlist
-                    <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <input type="hidden" name="return_to" value="{{ url_for('stock_detail', symbol=stock.symbol) }}">
+                <button type="submit" class="remove-button" title="Remove from Watchlist">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                     </svg>
                 </button>
             </form>
             {% endif %}
         </div>
+
     </div>
 
+    <!-- Chart Controls -->
     <div class="chart-controls">
         <div class="timeframe-selector">
             {% for tf, label in [('1d', '1D'), ('1w', '1W'), ('1m', '1M'), ('3m', '3M'), ('1y', '1Y'), ('5y', '5Y')] %}
             <a href="{{ url_for('stock_detail', symbol=stock.symbol, timeframe=tf) }}"
                class="timeframe-button {% if timeframe == tf %}active{% endif %}">
-                {{ label }}
+               {{ label }}
             </a>
             {% endfor %}
         </div>
+
         <div class="chart-options">
-            <button class="chart-option-button" data-type="line">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12h18M3 6h18M3 18h18"></path>
+            <button class="chart-option-button active" data-chart-type="line">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12h18M3 6h18M3 18h18"></path>
                 </svg>
                 Line
             </button>
-            <button class="chart-option-button" data-type="candlestick">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M7 5v14M17 5v14M3 8h8v8H3zM13 8h8v8h-8z"></path>
+            <button class="chart-option-button" data-chart-type="candle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 5v14M17 5v14M3 8h8v8H3zM13 8h8v8h-8z"></path>
                 </svg>
                 Candle
             </button>
         </div>
     </div>
 
+    <!-- Chart Container -->
     <div class="stock-chart-container">
-        <canvas id="stockChart"></canvas>
+       <canvas id="stockChart"></canvas>
     </div>
 
+    <!-- Stock Details Grid -->
     <div class="stock-details-grid">
+
+        <!-- Trading Information -->
         <div class="details-card">
             <h3>Trading Information</h3>
             <div class="details-grid">
@@ -103,6 +111,7 @@
             </div>
         </div>
 
+        <!-- Company Metrics -->
         <div class="details-card">
             <h3>Company Metrics</h3>
             <div class="details-grid">
@@ -125,6 +134,7 @@
             </div>
         </div>
 
+        <!-- Additional Info -->
         <div class="details-card">
             <h3>Additional Information</h3>
             <div class="details-grid">
@@ -149,200 +159,258 @@
         <h2>Latest News</h2>
         <div class="news-grid">
             {% for item in news %}
-            <a href="{{ item.link }}" target="_blank" class="news-card">
+            <a href="{{ item.link }}" class="news-card" target="_blank" rel="noopener">
+                <div class="news-image">
+                    <img
+                        src="{{ item.image_url }}"
+                        alt="News thumbnail for {{ item.title }}"
+                        loading="lazy"
+                        onerror="this.onerror=null; this.src='/api/placeholder/400/320?text={{ stock.symbol }}+News';"
+                    />
+                </div>
+
                 <div class="news-content">
                     <h3 class="news-title">{{ item.title }}</h3>
-                    <p class="news-summary">{{ item.summary[:200] }}...</p>
+                    <p class="news-summary">{{ item.summary }}</p>
+
                     <div class="news-meta">
                         <span class="news-publisher">{{ item.publisher }}</span>
-                        <span class="news-date">{{ item.published }}</span>
+                        <time class="news-date">{{ item.published }}</time>
                     </div>
                 </div>
             </a>
             {% endfor %}
         </div>
+
+        {% if not news %}
+        <div class="text-center py-12">
+            <p class="text-secondary">No news available for {{ stock.symbol }} at this time.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
-<script src="https://cdn.jsdelivr.net/npm/luxon"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial/dist/chartjs-chart-financial.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const chartData = {{ stock.historical_data | tojson | safe }};
-    const ctx = document.getElementById('stockChart').getContext('2d');
-    const isPositive = {{ 'true' if stock.change >= 0 else 'false' }};
-    let chart;
+    // Chart configuration
+    let chartData = {{ stock.historical_data|tojson|safe }};
+    let chartType = 'line';
+    let chart = null;
+    const chartCanvas = document.getElementById('stockChart');
 
-    function parseDate(dateStr) {
-        return new Date(dateStr).getTime(); // Convert to timestamp
-    }
+    const chartColors = {
+        primary: '#ffa2e2',
+        success: '#00C805',
+        danger: '#FF5000',
+        background: '#232526',
+        border: '#343637',
+        text: '#FFFFFF'
+    };
 
-    function createLineChart() {
-        return {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: '{{ stock.symbol }} Price',
-                    data: chartData.map(d => ({
-                        x: parseDate(d.date),
-                        y: d.price
-                    })),
-                    borderColor: isPositive ? '#00C805' : '#FF5000',
-                    backgroundColor: isPositive ? 'rgba(0, 200, 5, 0.1)' : 'rgba(255, 80, 0, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            }
-        };
-    }
+    function initializeChart() {
+        // Ensure any existing chart is destroyed
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+        // Clear the canvas context
+        const ctx = chartCanvas.getContext('2d');
+        ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
 
-    function createCandlestickChart() {
-        return {
-            type: 'candlestick',
-            data: {
-                datasets: [{
-                    label: '{{ stock.symbol }} OHLC',
-                    data: chartData.map(d => ({
-                        x: parseDate(d.date),
-                        o: d.open,
-                        h: d.high,
-                        l: d.low,
-                        c: d.close
-                    })),
-                    color: {
-                        up: '#00C805',
-                        down: '#FF5000',
-                    }
-                }]
-            }
-        };
-    }
-
-    function createChart(type = 'line') {
-        const configs = {
-            line: createLineChart(),
-            candlestick: createCandlestickChart()
-        };
-
-        const config = configs[type];
-        config.options = {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                    padding: 12,
-                    bodyFont: {
-                        size: 14
+        const datasets = [];
+        if (chartType === 'line') {
+            datasets.push({
+                data: chartData.map(d => ({
+                    x: new Date(d.date),
+                    y: d.close
+                })),
+                borderColor: 'var(--primary-burgundy)',
+                backgroundColor: 'var(--chart-fill)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1,
+                pointRadius: 0,
+                pointHitRadius: 5
+            });
+        } else {
+            datasets.push({
+                label: 'OHLC',
+                data: chartData.map(d => ({
+                    x: new Date(d.date),
+                    o: d.open,
+                    h: d.high,
+                    l: d.low,
+                    c: d.close
+                })),
+                candleStick: {
+                    up: {
+                        borderColor: 'var(--success-color)',
+                        backgroundColor: 'var(--success-color)'
                     },
-                    callbacks: {
-                        label: function(context) {
-                            if (type === 'line') {
-                                return `$${context.parsed.y.toFixed(2)}`;
-                            } else {
-                                const dataPoint = context.raw;
-                                return [
-                                    `Open: $${dataPoint.o.toFixed(2)}`,
-                                    `High: $${dataPoint.h.toFixed(2)}`,
-                                    `Low: $${dataPoint.l.toFixed(2)}`,
-                                    `Close: $${dataPoint.c.toFixed(2)}`
-                                ];
+                    down: {
+                        borderColor: 'var(--danger-color)',
+                        backgroundColor: 'var(--danger-color)'
+                    }
+                }
+            });
+        }
+
+        const config = {
+            type: chartType === 'line' ? 'line' : 'candlestick',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0 // Disable animations for better performance
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: '{{ timeframe }}' === '1d' ? 'hour' : 'day',
+                            displayFormats: {
+                                hour: 'HH:mm',
+                                day: 'MMM d',
+                                week: 'MMM d',
+                                month: 'MMM yyyy'
+                            }
+                        },
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            display: false
+                        },
+                        border: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: chartColors.border + '20',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            display: false
+                        },
+                        border: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: chartColors.background,
+                        titleColor: chartColors.text,
+                        bodyColor: chartColors.text,
+                        borderColor: chartColors.border,
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const date = new Date(tooltipItems[0].raw.x);
+                                if ('{{ timeframe }}' === '1d') {
+                                    return date.toLocaleTimeString([], {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    });
+                                }
+                                return date.toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                if (chartType === 'line') {
+                                    return `$${context.parsed.y.toFixed(2)}`;
+                                } else {
+                                    const dataPoint = context.raw;
+                                    return [
+                                        `Open: $${dataPoint.o.toFixed(2)}`,
+                                        `High: $${dataPoint.h.toFixed(2)}`,
+                                        `Low: $${dataPoint.l.toFixed(2)}`,
+                                        `Close: $${dataPoint.c.toFixed(2)}`
+                                    ];
+                                }
                             }
                         }
                     }
                 }
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: '{{ timeframe }}' === '1d' ? 'hour' : 'day',
-                        displayFormats: {
-                            hour: 'HH:mm',
-                            day: 'MMM d'
-                        }
-                    },
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        display: false
-                    }
-                },
-                y: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        display: false
-                    }
-                }
             }
         };
 
-        if (type === 'candlestick') {
-            config.options.scales.y.beginAtZero = false;
-        }
-
-        if (chart) {
-            chart.destroy();
-        }
+        // Create new chart
         chart = new Chart(ctx, config);
     }
-
-
-    // Initialize with line chart
-    createChart('line');
 
     // Handle chart type switching
     document.querySelectorAll('.chart-option-button').forEach(button => {
         button.addEventListener('click', function() {
-            const type = this.dataset.type;
-            document.querySelectorAll('.chart-option-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            this.classList.add('active');
-            createChart(type);
+            const newType = this.dataset.chartType;
+            if (newType !== chartType) {
+                document.querySelector('.chart-option-button.active').classList.remove('active');
+                this.classList.add('active');
+                chartType = newType;
+                initializeChart();
+            }
         });
     });
 
-    // Live updates
-    if ({{ 'true' if market_open else 'false' }}) {
-        setInterval(() => {
-            fetch(`/api/stock/${encodeURIComponent('{{ stock.symbol }}')}/latest`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && !data.error) {
-                        // Update price display
-                        const priceEl = document.querySelector('.stock-price-large');
-                        const changeEl = document.querySelector('.stock-change-large');
-                        if (priceEl && changeEl) {
-                            priceEl.textContent = `$${data.price.toFixed(2)}`;
-                            changeEl.className = `stock-change-large ${data.change >= 0 ? 'positive' : 'negative'}`;
-                            changeEl.innerHTML = `${data.change >= 0 ? '↑' : '↓'} $${Math.abs(data.change).toFixed(2)} (${Math.abs(data.percent_change).toFixed(2)}%)`;
-                        }
+    // Initialize chart
+    initializeChart();
 
-                        // Update chart data
-                        const chartData = data.historical_data;
-                        const type = chart.config.type;
-                        createChart(type);
+    // Live updates when market is open
+    let updateInterval;
+    if ({{ market_open|tojson }}) {
+        updateInterval = setInterval(async function() {
+            try {
+                const response = await fetch(`/api/stock/{{ stock.symbol }}/latest`);
+                const data = await response.json();
+
+                if (data && chart && chart.data.datasets[0].data.length > 0) {
+                    const lastDataset = chart.data.datasets[0];
+                    if (chartType === 'line') {
+                        lastDataset.data[lastDataset.data.length - 1].y = data.price;
+                    } else {
+                        const lastPoint = lastDataset.data[lastDataset.data.length - 1];
+                        lastPoint.c = data.price;
+                        lastPoint.h = Math.max(lastPoint.h, data.price);
+                        lastPoint.l = Math.min(lastPoint.l, data.price);
                     }
-                })
-                .catch(error => console.error('Error updating chart:', error));
-        }, 5000);
+                    chart.update('quiet');
+                }
+            } catch (error) {
+                console.error('Error updating chart:', error);
+            }
+        }, 60000);
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (chart) {
+            chart.destroy();
+        }
+        if (updateInterval) {
+            clearInterval(updateInterval);
+        }
+    });
 });
 </script>
 {% endblock %}

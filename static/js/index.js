@@ -68,7 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ctx.fill();
     }
 
-
     // Start real-time updates
     function startRealTimeUpdates() {
         setInterval(() => {
@@ -147,8 +146,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error updating stock card:', error);
         }
     }
-
-
 
     // Initialize everything
     function initialize() {

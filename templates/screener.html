@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Stock Screener{% endblock %}
+{% block content %}
+
+<div class="screener-container">
+    <header class="screener-header">
+        <h1>Market Movers & Sector Performance</h1>
+
+        <div class="screener-controls">
+            <div class="sector-selector">
+                <select class="sector-select">
+                    {% for sector in sectors %}
+                    <option value="{{ sector }}" {% if sector == selected_sector %}selected{% endif %}>
+                        {{ sector }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class = "sort-container">
+                <select class="sort-select"></select>
+                    <option value="marketCap" {% if sort_by == 'marketCap' %}selected{% endif %}>Market Cap</option>
+                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>Price</option>
+                    <option value="percent_change" {% if sort_by == 'percent_change' %}selected{% endif %}>% Change</option>
+                    <option value="volume" {% if sort_by == 'volume' %}selected{% endif %}>Volume</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sector Performance Overview -->
+    <section class="stock-section">
+    <h2>Sector Performance</h2>
+    <div class="stock-grid">
+      {% for sector, performance in sector_performance.items() %}
+      <div class="stock-card">
+        <div class="stock-header">
+          <div class="stock-symbol">{{ sector }}</div>
+          <div class="stock-price">
+            <div class="stock-change {% if performance.change >= 0 %}positive{% else %}negative{% endif %}">
+              {{ '{:+.2f}%'.format(performance.change) }}
+            </div>
+          </div>
+          <div class="stock-volume">Vol: {{ performance.volume }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+    <!-- Top Movers -->
+    <section class="stock-section">
+        <h2>Top Movers</h2>
+        <div class="sort-options">
+          <button class="sort-button active" data-type="gainers">Gainers</button>
+          <button class="sort-button" data-type="losers">Losers</button>
+          <button class="sort-button" data-type="volume">Volume</button>
+        </div>
+
+        <div class="stock-grid">
+            {% for stock in top_movers %}
+            <div class="stock-card">
+                <div class="stock-header">
+                    <div class="stock-symbol">{{ stock.symbol }}</div>
+                    <div class="stock-price">${{ '{:.2f}'.format(stock.price) }}</div>
+                    <div class="stock-change {% if stock.change >0 %}positive{% else %}negative{% endif %}">
+                        {{ '{:+.2f}%'.format(stock.percent_change) }}
+                    </div>
+                    <div class="stock-volume">Vol: {{ stock.volume }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Sector Deep Dive -->
+    <section class="stock-section">
+        <h2>Sector Dive</h2>
+        <div class="stock-grid">
+            {% for stock in sector_stocks %}
+            <div class="stock-card">
+                <div class="stock-header">
+                  <div class="stock-symbol">{{ stock.symbol }}</div>
+                  <div class="stock-price">${{ '{:.2f}'.format(stock.price) }}</div>
+                  <div class="stock-change {% if stock.change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ '{:+.2f}%'.format(stock.percent_change) }}
+                  </div>
+                  <div class="stock-volume">Vol: {{ stock.volume }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+{% endblock %}

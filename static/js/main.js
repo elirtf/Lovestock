@@ -1,5 +1,3 @@
-// static/js/main.js
-
 document.addEventListener('DOMContentLoaded', function() {
     // Search functionality
     const searchInput = document.querySelector('.search-input');
